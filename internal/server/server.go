@@ -25,11 +25,9 @@ func (s server) RunServer() {
 }
 
 func NewMetricServer(cfg *config.Config, ms metrics.Storage) *server {
+
 	r := chi.NewRouter()
 	r.Use(logger.Logging, compress.GzipMiddleware, cache.Middleware)
-
-	// r.MethodNotAllowed()
-
 	r.Get("/", handler.GetAll(ms))
 	r.Get("/ping", handler.Ping(ms))
 	r.Post("/updates/", handler.WriteJSONMetric(ms))

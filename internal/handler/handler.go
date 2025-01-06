@@ -17,25 +17,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func GetAll(ms metrics.Storage) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		// fmt.Println("GetAll")
-
-		list := ms.SelectAll()
-		var out []string
-		for _, el := range list {
-			out = append(out, el.ID)
-		}
-		w.Header().Set("Content-Type", "text/html")
-		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, strings.Join(out, ", "))
-
-	})
-}
 func Ping(ms metrics.Storage) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-		// fmt.Println("Ping")
 		ctx := context.Background()
 		cfg := ms.GetConfig()
 
@@ -53,16 +37,52 @@ func Ping(ms metrics.Storage) http.HandlerFunc {
 			}
 
 			time.Sleep(time.Duration(i+1) * time.Second)
-			fmt.Printf("Connect to DB. Retry: %d\n", i+1)
+			log.Printf("Connect to DB. Retry: %d\n", i+1)
 		}
 		log.Printf("[ERR][DB] failed to connect to %s\n", cfg.DatabaseDsn)
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 }
-func WriteMetric(ms metrics.Storage) http.HandlerFunc {
+func GetAll(ms metrics.Storage) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-		// fmt.Println("WriteMetric")
+		list := ms.SelectAll()
+		var out []string
+		for _, el := range list {
+			out = append(out, el.ID)
+		}
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, strings.Join(out, ", "))
+
+	})
+}
+func GetMetric(ms metrics.Storage) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+
+		w.Header().Set("Content-Type", "text/plain")
+		metrictype := strings.Split(req.URL.Path, "/")[2]
+		ID := strings.Split(req.URL.Path, "/")[3]
+
+		res, err := ms.Select(metrics.Element{ID: ID, MType: metrictype})
+		if err != nil {
+			http.Error(w, "Metric Not Found", http.StatusNotFound)
+			return
+		}
+		var out any
+		switch metrictype {
+		case "gauge":
+			out = *res.Value
+		case "counter":
+			out = *res.Delta
+		}
+
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, fmt.Sprintf("%v\n", out))
+	})
+}
+func WriteMetric(ms metrics.Storage) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
 		metrictype := strings.Split(req.URL.Path, "/")[2]
 		metric := strings.Split(req.URL.Path, "/")[3]
@@ -88,10 +108,36 @@ func WriteMetric(ms metrics.Storage) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 	})
 }
-func WriteJSONMetric(ms metrics.Storage) http.HandlerFunc {
+func GetJSONMetric(ms metrics.Storage) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-		// fmt.Println("WriteJSONMetric")
+		decoder := json.NewDecoder(req.Body)
+		var in metrics.Element
+		err := decoder.Decode(&in)
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				w.WriteHeader(http.StatusBadRequest)
+				log.Printf("[ERR][JSON] %s", err)
+			}
+			return
+		}
+		defer req.Body.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+
+		res, err := ms.Select(in)
+		if err != nil {
+			http.Error(w, "Metric Not Found", http.StatusNotFound)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		o, _ := json.Marshal(res)
+		io.WriteString(w, fmt.Sprintf("%s\n", o))
+	})
+}
+func WriteJSONMetric(ms metrics.Storage) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
 		data, err := io.ReadAll(req.Body)
 		if err != nil {
@@ -145,61 +191,5 @@ func WriteJSONMetric(ms metrics.Storage) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			io.WriteString(w, fmt.Sprintf("%s\n", o))
 		}
-	})
-}
-func GetJSONMetric(ms metrics.Storage) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-
-		// fmt.Println("GetJSONMetric")
-
-		decoder := json.NewDecoder(req.Body)
-		var in metrics.Element
-		err := decoder.Decode(&in)
-		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				w.WriteHeader(http.StatusBadRequest)
-				log.Printf("[ERR][JSON] %s", err)
-			}
-			return
-		}
-		defer req.Body.Close()
-
-		w.Header().Set("Content-Type", "application/json")
-
-		res, err := ms.Select(in)
-		if err != nil {
-			http.Error(w, "Metric Not Found", http.StatusNotFound)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		o, _ := json.Marshal(res)
-		io.WriteString(w, fmt.Sprintf("%s\n", o))
-	})
-}
-func GetMetric(ms metrics.Storage) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-
-		// fmt.Println("GetMetric")
-
-		w.Header().Set("Content-Type", "text/plain")
-		metrictype := strings.Split(req.URL.Path, "/")[2]
-		ID := strings.Split(req.URL.Path, "/")[3]
-
-		res, err := ms.Select(metrics.Element{ID: ID, MType: metrictype})
-		if err != nil {
-			http.Error(w, "Metric Not Found", http.StatusNotFound)
-			return
-		}
-		var out any
-		switch metrictype {
-		case "gauge":
-			out = *res.Value
-		case "counter":
-			out = *res.Delta
-		}
-
-		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, fmt.Sprintf("%v\n", out))
 	})
 }
