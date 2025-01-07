@@ -35,10 +35,7 @@ func (l *loggingResponseWriter) WriteHeader(statusCode int) {
 func Logging(h http.Handler) http.Handler {
 	logFn := func(w http.ResponseWriter, req *http.Request) {
 
-		logger, err := zap.NewDevelopment()
-		if err != nil {
-			panic(err)
-		}
+		logger := zap.Must(zap.NewDevelopment())
 		defer logger.Sync()
 
 		sugar = *logger.Sugar()

@@ -5,19 +5,25 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/JohnRobertFord/go-plant/internal/sign"
 )
 
-var pollInterval = 2
-var reportInterval = 10
-var pollInt *int
-var repInt *int
-var remote *string
+var (
+	pollInterval   = 2
+	reportInterval = 10
+	pollInt        *int
+	repInt         *int
+	remote         *string
+	keySign        *string
+)
 
 type Element struct {
 	ID    string   `json:"id"`
@@ -117,11 +123,25 @@ func SendJSONData(els []Element) {
 
 	ret, err := json.Marshal(els)
 	if err != nil {
-		panic(err)
+		log.Print(err)
 	}
 
+	client := &http.Client{}
+
 	r := bytes.NewReader(ret)
-	resp, err := http.Post("http://"+*remote+"/update/", "application/json", r)
+	// req, err := http.Post("http://"+*remote+"/updates/", "application/json", r)
+	req, err := http.NewRequest("POST", "http://"+*remote+"/updates/", r)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if *keySign != "" {
+		hash, _ := sign.SignString(string(ret), *keySign)
+		req.Header.Add("Hash", hash)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -135,6 +155,7 @@ func main() {
 	remote = flag.String("a", "127.0.0.1:8080", "remote endpoint")
 	repInt = flag.Int("r", reportInterval, "report interval")
 	pollInt = flag.Int("p", pollInterval, "poll interval")
+	keySign = flag.String("k", "", "key for sign")
 
 	ri := os.Getenv("REPORT_INTERVAL")
 	pi := os.Getenv("POLL_INTERVAL")
@@ -170,14 +191,6 @@ func main() {
 	myM := Metrics{
 		memstats: &runtime.MemStats{},
 	}
-
-	// pollTicker := time.NewTicker(time.Duration(pInt) * time.Second)
-	// reportTicker := time.NewTicker(time.Duration(rInt) * time.Second)
-
-	// var m sync.Mutex
-
-	// go UpdateMetrics(*myM.memstats, &m, pollTicker)
-	// go PrepareData(myM.GetMetrics(), &m, reportTicker)
 
 	runtime.ReadMemStats(myM.memstats)
 	PrepareData(myM.GetMetrics())

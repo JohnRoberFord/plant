@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JohnRobertFord/go-plant/internal/sign"
 	"github.com/JohnRobertFord/go-plant/internal/storage/metrics"
 	"github.com/JohnRobertFord/go-plant/internal/storage/metrics/diskfile"
 	"github.com/jackc/pgx/v5"
@@ -51,9 +52,10 @@ func GetAll(ms metrics.Storage) http.HandlerFunc {
 		for _, el := range list {
 			out = append(out, el.ID)
 		}
+		result := strings.Join(out, ", ")
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, strings.Join(out, ", "))
+		io.WriteString(w, result)
 
 	})
 }
@@ -116,8 +118,8 @@ func GetJSONMetric(ms metrics.Storage) http.HandlerFunc {
 		err := decoder.Decode(&in)
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
-				w.WriteHeader(http.StatusBadRequest)
 				log.Printf("[ERR][JSON] %s", err)
+				w.WriteHeader(http.StatusBadRequest)
 			}
 			return
 		}
@@ -138,19 +140,28 @@ func GetJSONMetric(ms metrics.Storage) http.HandlerFunc {
 }
 func WriteJSONMetric(ms metrics.Storage) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-
 		data, err := io.ReadAll(req.Body)
 		if err != nil {
+			log.Printf("[ERR][MEM] %s", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		defer req.Body.Close()
 
 		cfg := ms.GetConfig()
+		if cfg.Key != "" {
+			if !sign.IsValid(string(data), req.Header.Get("Hash"), cfg.Key) {
+				log.Printf("[ERR][Sign] Validation error")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+
 		if data[0] != '[' {
 			var in metrics.Element
 			err = json.Unmarshal(data, &in)
 			if err != nil {
+				log.Printf("[ERR][MEM] %s", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -170,6 +181,7 @@ func WriteJSONMetric(ms metrics.Storage) http.HandlerFunc {
 			var in []metrics.Element
 			err = json.Unmarshal(data, &in)
 			if err != nil {
+				log.Printf("[ERR][MEM] %s", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -177,7 +189,6 @@ func WriteJSONMetric(ms metrics.Storage) http.HandlerFunc {
 			for _, el := range in {
 				out = append(out, ms.Insert(el))
 			}
-
 			o, _ := json.Marshal(out)
 
 			if cfg.StoreInterval == 0 {

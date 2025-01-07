@@ -16,15 +16,15 @@ func SignString(input string, key string) (string, error) {
 	return hex.EncodeToString(hash), nil
 }
 
-func IsValid(msg string, recieved string, keyString string) (bool, error) {
-	mac1, err := hex.DecodeString(recieved)
-	if err != nil {
-		return false, err
-	}
+func IsValid(msg string, mac1 string, keyString string) bool {
+	// mac1, err := hex.DecodeString(recieved)
+	// if err != nil {
+	// 	return false
+	// }
 	mac2, err := SignString(msg, keyString)
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	return hmac.Equal(mac1, []byte(mac2)), nil
+	return hmac.Equal([]byte(mac1), []byte(mac2))
 }
