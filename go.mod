@@ -3,7 +3,7 @@ module github.com/JohnRobertFord/go-plant
 go 1.22.10
 
 require (
-	github.com/caarlos0/env/v11 v11.3.0
+	github.com/caarlos0/env/v11 v11.3.1
 	github.com/go-chi/chi v1.5.5
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/stretchr/testify v1.9.0

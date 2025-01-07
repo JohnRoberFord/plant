@@ -149,8 +149,10 @@ func WriteJSONMetric(ms metrics.Storage) http.HandlerFunc {
 		defer req.Body.Close()
 
 		cfg := ms.GetConfig()
-		if cfg.Key != "" {
-			if !sign.IsValid(string(data), req.Header.Get("Hash"), cfg.Key) {
+		hash := req.Header.Get("Hash")
+
+		if hash != "none" && hash != "" {
+			if !sign.IsValid(string(data), hash, cfg.Key) {
 				log.Printf("[ERR][Sign] Validation error")
 				w.WriteHeader(http.StatusBadRequest)
 				return

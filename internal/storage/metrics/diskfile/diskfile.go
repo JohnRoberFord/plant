@@ -49,7 +49,7 @@ func Write2File(ms metrics.Storage) error {
 		switch el.MType {
 		case "counter":
 			buf = append(buf, fmt.Sprintf(
-				"{\"id\":\"%s\",\"type\":\"counter\",\"delta\":%v}", el.ID, *el.Delta))
+				"{\"id\":\"%s\",\"type\":\"counter\",\"delta\":%d}", el.ID, *el.Delta))
 		case "gauge":
 			buf = append(buf, fmt.Sprintf("{\"id\":\"%s\",\"type\":\"gauge\",\"value\":%v}", el.ID, *el.Value))
 		default:

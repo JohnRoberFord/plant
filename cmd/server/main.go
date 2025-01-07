@@ -58,4 +58,5 @@ func main() {
 	)
 	<-sigChan
 	diskfile.Write2File(storage)
+	// storage.
 }
