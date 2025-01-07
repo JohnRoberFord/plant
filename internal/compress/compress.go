@@ -19,7 +19,6 @@ func (c compressWriter) Write(p []byte) (int, error) {
 
 func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
 			zr, err := gzip.NewReader(req.Body)
 			if err != nil {
@@ -29,9 +28,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			defer zr.Close()
 			req.Body = zr
 		}
-
 		if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-
 			zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
 			if err != nil {
 				io.WriteString(w, err.Error())
@@ -41,9 +38,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 
 			w.Header().Set("Content-Encoding", "gzip")
 			w = compressWriter{w, zw}
-
 		}
-
 		next.ServeHTTP(w, req)
 	})
 }
