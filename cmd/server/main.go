@@ -49,14 +49,14 @@ func main() {
 				<-time.After(t)
 				err := diskfile.Write2File(ctx, ms)
 				if err != nil {
-					log.Printf("[ERR][FILE] cant write to file: %e", err)
+					log.Printf("[ERR][FILE] cant write to file: %s", err)
 				}
 			}
 		}(storage, sleep)
 	}
 
 	metricServer := server.NewMetricServer(cfg, storage)
-
+	log.Println(cfg)
 	go metricServer.RunServer()
 
 	sigChan := make(chan os.Signal, 1)
@@ -68,6 +68,6 @@ func main() {
 	<-sigChan
 	err = diskfile.Write2File(ctx, storage)
 	if err != nil {
-		log.Printf("[ERR][FILE] cant write to file: %e", err)
+		log.Printf("[ERR][FILE] cant write to file: %s", err)
 	}
 }
