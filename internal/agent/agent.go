@@ -153,38 +153,21 @@ func (m *Metrics) PushCounter(name string, value int64) {
 	if c, ok := m.mapa[name].(counter); ok {
 		m.mapa[name] = c + counter(value)
 	} else {
-		m.mapa[name] = c
-	}
-
-}
-
-func SendMetric(cfg *Config, els []metrics.Element) {
-
-	var str string
-	var err error
-	ctx := context.Background()
-
-	for _, el := range els {
-		if el.MType == "gauge" {
-			str = fmt.Sprintf("http://%s/update/%s/%s/%v", cfg.URL, el.MType, el.ID, *el.Value)
-		} else {
-			str = fmt.Sprintf("http://%s/update/%s/%s/%v", cfg.URL, el.MType, el.ID, *el.Delta)
-		}
-		err = utils.Retry(ctx, func() error {
-			resp, err := http.Post(str, "text/plain", nil)
-			if err != nil {
-				return err
-			}
-			defer resp.Body.Close()
-			return nil
-		})
-		if err != nil {
-			log.Println(err)
-		}
+		m.mapa[name] = counter(value)
 	}
 }
 
-func GetElements(m *Metrics) []metrics.Element {
+func (m *Metrics) ResetCounter(name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.mapa[name].(counter); ok {
+		m.mapa[name] = counter(0)
+	}
+}
+
+func (m *Metrics) GetElements() []metrics.Element {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []metrics.Element
 	for name, value := range m.mapa {
 		switch value := value.(type) {
@@ -204,7 +187,6 @@ func GetElements(m *Metrics) []metrics.Element {
 			})
 		}
 	}
-	fmt.Println(out)
 	return out
 }
 

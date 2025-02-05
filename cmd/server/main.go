@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -57,7 +56,7 @@ func main() {
 	}
 
 	metricServer := server.NewMetricServer(cfg, storage)
-	fmt.Println(cfg)
+	log.Println(cfg)
 	go metricServer.RunServer()
 
 	sigChan := make(chan os.Signal, 1)

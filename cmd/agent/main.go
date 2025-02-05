@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -16,7 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("can't init config: %e", err)
 	}
-	fmt.Println(cfg.String())
+	log.Println(cfg)
 
 	myM := agent.NewStorage()
 
@@ -34,7 +33,8 @@ func main() {
 	}, time.Duration(cfg.PollInterval)*time.Second, 1, &wg)
 
 	agent.Worker(ctx, func() error {
-		agent.SendJSONData(cfg, agent.GetElements(myM))
+		agent.SendJSONData(cfg, myM.GetElements())
+		myM.ResetCounter("PollCount")
 		return nil
 	}, time.Duration(cfg.ReportInterval)*time.Second, cfg.RateLimit, &wg)
 
